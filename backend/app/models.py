@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional , Any
 from sqlalchemy.dialects.postgresql import JSONB
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-
 from db import Base
 
+#describes how data is stored
 
 class User(Base):
     __tablename__ = "users"
@@ -94,12 +94,6 @@ class Event(Base):
         ),
         sa.Index("ix_events_project_created", "project_id", "created_at"),
     )
-from datetime import datetime
-from typing import Optional, List, Any
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
 
 class Task(Base):
     """Represents a discrete task item within a project."""

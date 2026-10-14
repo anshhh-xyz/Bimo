@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
-
+#what api accepts and returns
 Provenance = Literal["verified", "asserted", "unverified"]
 TaskState = Literal["todo", "in_progress", "done"]
 VerificationStatus = Literal["verified", "partial", "unverified"]
@@ -128,3 +128,9 @@ class StateOut(BaseModel):
     recent_decisions: list[DecisionOut]
     latest_handoff: HandoffOut | None
     unverified: list[UnverifiedItem]
+
+
+
+"""Why separate schemas from models? 
+The database may contain internal fields that you don't want to accept from a client or expose in a response. 
+Schemas let you control that boundary."""

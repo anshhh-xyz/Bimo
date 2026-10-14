@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from db import Base, database_url, engine
-import models  # noqa: F401  (registers the tables on Base)
+from app.services import models 
 
 config = context.config
 
