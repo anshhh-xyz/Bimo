@@ -1,0 +1,130 @@
+from datetime import datetime
+from typing import Any, Literal
+from pydantic import BaseModel, ConfigDict, Field
+
+Provenance = Literal["verified", "asserted", "unverified"]
+TaskState = Literal["todo", "in_progress", "done"]
+VerificationStatus = Literal["verified", "partial", "unverified"]
+
+
+class In(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class Out(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ---- tasks
+class TaskCreate(In):
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    agent: str | None = None
+    commit_sha: str | None = None
+
+
+class TaskUpdate(In):
+    version: int
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    state: TaskState | None = None
+    agent: str | None = None
+    commit_sha: str | None = None
+
+
+class TaskOut(Out):
+    id: int
+    project_id: int
+    title: str
+    description: str | None
+    state: str
+    provenance: Provenance
+    created_by: int
+    surface: str | None
+    agent: str | None
+    commit_sha: str | None
+    verified_by: int | None
+    verified_at: datetime | None
+    version: int
+    updated_at: datetime | None
+
+
+# ---- decisions
+class DecisionCreate(In):
+    topic: str = Field(min_length=1, max_length=255)
+    decision: str = Field(min_length=1)
+    rationale: str | None = None
+    agent: str | None = None
+    commit_sha: str | None = None
+
+
+class DecisionOut(Out):
+    id: int
+    project_id: int
+    topic: str
+    decision: str
+    rationale: str | None
+    provenance: Provenance
+    created_by: int
+    surface: str | None
+    agent: str | None
+    commit_sha: str | None
+    verified_by: int | None
+    verified_at: datetime | None
+    version: int
+    created_at: datetime
+
+
+# ---- handoffs
+class HandoffCreate(In):
+    summary: str = Field(min_length=1)
+    completed: list[str] = []
+    blockers: list[str] = []
+    open_questions: list[str] = []
+    files_touched: list[str] = []
+    last_commit_sha: str | None = None
+    verification_status: VerificationStatus = "unverified"
+    next_action: str | None = None
+    agent: str | None = None
+
+
+class HandoffOut(Out):
+    id: int
+    project_id: int
+    created_by: int
+    surface: str | None
+    agent: str | None
+    provenance: Provenance
+    summary: str
+    completed: list[Any]
+    blockers: list[Any]
+    open_questions: list[Any]
+    files_touched: list[Any]
+    last_commit_sha: str | None
+    verification_status: str
+    next_action: str | None
+    created_at: datetime
+
+
+# ---- events / state
+class EventOut(Out):
+    id: int
+    user_id: int | None
+    surface: str | None
+    type: str
+    payload: dict[str, Any]
+    created_at: datetime
+
+
+class UnverifiedItem(BaseModel):
+    kind: Literal["task", "decision"]
+    id: int
+    label: str
+    provenance: Provenance
+
+
+class StateOut(BaseModel):
+    open_tasks: list[TaskOut]
+    recent_decisions: list[DecisionOut]
+    latest_handoff: HandoffOut | None
+    unverified: list[UnverifiedItem]
