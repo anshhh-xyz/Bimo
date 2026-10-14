@@ -4,6 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db import get_session
 from app.models import User, ProjectMember
+from app.services.access import Ctx
+from app.services import access
 
 ROLE_RANK = {"viewer": 1, "member": 2, "editor": 2, "owner": 3}
 SURFACES = {"web", "code", "github"}
@@ -27,17 +29,8 @@ def get_current_user(x_user_id: int = Header(...),
 
 def require_member(min_role: str = "viewer"):
     def dependency(project_id: int,
-                   user: User = Depends(get_current_user),
-                   session: Session = Depends(get_session),
-                   x_surface: str = Header("web")) -> Ctx:
-        member = session.scalar(
-            select(ProjectMember).where(
-                ProjectMember.project_id == project_id,
-                ProjectMember.user_id == user.id))
-        if member is None or ROLE_RANK.get(member.role, 0) < ROLE_RANK[min_role]:
-            raise HTTPException(403, "Not allowed on this project")
-        if x_surface not in SURFACES:
-            raise HTTPException(422, "X-Surface must be web, code or github")
-        return Ctx(user=user, project_id=project_id,
-                   role=member.role, surface=x_surface)
+                   x_user_id: int = Header(...),
+                   x_surface: str = Header("web"),
+                   session=Depends(get_session)) -> Ctx:
+        return access.get_ctx(session, x_user_id, project_id, x_surface, min_role)
     return dependency

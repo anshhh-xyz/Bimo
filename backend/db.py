@@ -20,9 +20,7 @@ engine = create_engine(
     max_overflow=8,     # extra connections allowed under load (2 + 8 = 10 max)
     pool_pre_ping=True, # test a connection before using it
 )
-
-SessionLocal = sessionmaker(bind=engine)
-
+SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 class Base(DeclarativeBase):
     pass

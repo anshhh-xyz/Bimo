@@ -1,8 +1,7 @@
-from fastapi import HTTPException
 from sqlalchemy import select, update, func
-from app.errors import ConflictError
 from app.models import Task
 from app.schemas import TaskCreate, TaskUpdate, TaskOut
+from app.services.errors import ConflictError, InvalidInput, NotFound
 from app.services.events import log_event
 
 
@@ -25,7 +24,7 @@ def create_task(session, ctx, data: TaskCreate) -> Task:
 def update_task(session, ctx, task_id: int, data: TaskUpdate) -> Task:
     changes = data.model_dump(exclude_unset=True, exclude={"version"})
     if not changes:
-        raise HTTPException(422, "Nothing to update")
+        raise InvalidInput("Nothing to update")
 
     # Atomic: only succeeds if the version still matches.
     stmt = (
@@ -51,7 +50,7 @@ def update_task(session, ctx, task_id: int, data: TaskUpdate) -> Task:
                                Task.project_id == ctx.project_id)
             .execution_options(populate_existing=True))
         if current is None:
-            raise HTTPException(404, "Task not found")
+            raise NotFound("Task not found")
         log_event(session, project_id=ctx.project_id, user_id=ctx.user.id,
                   surface=ctx.surface, type="conflict_rejected",
                   payload={"task_id": task_id,
@@ -67,3 +66,6 @@ def update_task(session, ctx, task_id: int, data: TaskUpdate) -> Task:
                        "new_version": task.version})
     session.commit()
     return task
+
+    """The logic is identical.
+     Only the exceptions changed, from HTTPException to domain errors."""
