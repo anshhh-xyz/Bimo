@@ -266,6 +266,58 @@ class Handoff(Base):
         sa.Index("ix_handoffs_project_created", "project_id", "created_at"),
     )
 
+class OAuthClient(Base):
+    """A client (e.g. Claude web) that registered itself via /register."""
+    __tablename__ = "oauth_clients"
+
+    client_id: Mapped[str] = mapped_column(sa.String(64), primary_key=True)
+    client_name: Mapped[Optional[str]] = mapped_column(sa.String(200), nullable=True)
+    redirect_uris: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class OAuthCode(Base):
+    """Short-lived, single-use authorization code. Only its hash is stored."""
+    __tablename__ = "oauth_codes"
+
+    code_hash: Mapped[str] = mapped_column(sa.String(64), primary_key=True)
+    client_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("oauth_clients.client_id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    redirect_uri: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    code_challenge: Mapped[str] = mapped_column(sa.String(128), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+
+
+class OAuthToken(Base):
+    """Access and refresh tokens. Only SHA-256 hashes are stored."""
+    __tablename__ = "oauth_tokens"
+
+    token_hash: Mapped[str] = mapped_column(sa.String(64), primary_key=True)
+    kind: Mapped[str] = mapped_column(sa.String(10), nullable=False)
+    client_id: Mapped[str] = mapped_column(
+        sa.ForeignKey("oauth_clients.client_id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        sa.CheckConstraint("kind IN ('access', 'refresh')", name="ck_oauth_tokens_kind"),
+        sa.Index("ix_oauth_tokens_user", "user_id"),
+    )
+
+"""OAuth needs three things remembered: which clients registered, which login codes are pending, and which tokens are live. 
+Storing hashes means a leaked database dump doesn’t hand out working tokens."""
 
 """We chose this structure because it is the industry-standard relational database design for handling user-to-workspace 
 permissions. Instead of packing user lists into a single text column or project lists into a user column (which violates database 

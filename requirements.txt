@@ -17,6 +17,8 @@ httpx>=0.27          # needed by FastAPI's TestClient
 mcp>=1.1
 
 # --- Phase 3.5: OAuth / tokens (add when you reach it)
+python-multipart>=0.0.9 
+# login form parsing in the OAuth /authorize page
 # authlib>=1.3
 # python-jose[cryptography]>=3.3
 

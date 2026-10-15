@@ -3,7 +3,8 @@ from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from mcp_server.server import mcp, mcp_asgi_app
-from app.routers import projects, tasks, decisions, changes, handoffs
+from app.public_guard import PublicGuard
+from app.routers import projects, tasks, decisions, changes, handoffs, oauth
 from app.services.errors import ConflictError, ServiceError
 
 
@@ -15,6 +16,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Memory & Handoff", lifespan=lifespan)
+app.add_middleware(PublicGuard)
 
 
 @app.exception_handler(ServiceError)
@@ -30,10 +32,8 @@ def health():
     return {"ok": True}
 
 
-for r in (projects, tasks, decisions, changes, handoffs):
+for r in (projects, tasks, decisions, changes, handoffs, oauth):
     app.include_router(r.router)
 
-# Mount LAST. Starlette matches in order, so every FastAPI route above wins and
-# only unmatched paths reach MCP, which gives the endpoint exactly /mcp
-# (mounting at "/mcp" would force "/mcp/" and a 307 redirect that some clients mishandle).
+# Mount LAST so every FastAPI route above (including the OAuth ones) wins.
 app.mount("/", mcp_asgi_app)

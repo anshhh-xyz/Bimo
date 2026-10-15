@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,9 +18,38 @@ def dev_tokens() -> dict[str, int]:
         tokens[token] = int(uid)
     return tokens
 
-"""dev_tokens() is a helper used by the auth middleware to look up
-the user ID for a given token. It reads the DEV_TOKENS environment
-variable, which we'll set in .env for local development."""
 
-"""It gives the MCP layer a way to know which user is calling before real OAuth (3.5) exists. 
-Each token maps to one user, which is how your three accounts become three identities"""
+def public_url() -> str:
+    """Public https base URL of this server (the tunnel URL), no trailing slash."""
+    return os.environ.get("PUBLIC_URL", "").rstrip("/")
+
+
+def user_passphrases() -> dict[str, str]:
+    """USER_PASSPHRASES='alice@example.com:phrase1,bob@example.com:phrase2'
+    -> {'alice@example.com': 'phrase1', ...}. Used on the OAuth login page."""
+    out: dict[str, str] = {}
+    for pair in (p.strip() for p in os.environ.get("USER_PASSPHRASES", "").split(",")):
+        if not pair:
+            continue
+        email, sep, phrase = pair.partition(":")
+        if not sep or not email or not phrase:
+            raise ValueError("USER_PASSPHRASES must look like 'email:passphrase,email:passphrase'")
+        out[email.lower()] = phrase
+    return out
+
+
+def allowed_redirect(uri: str) -> bool:
+    """Only let OAuth redirect to Claude's own callback hosts, or localhost (Claude Code)."""
+    p = urlparse(uri)
+    if p.fragment:
+        return False
+    hosts = {h.strip() for h in
+             os.environ.get("ALLOWED_REDIRECT_HOSTS", "claude.ai,claude.com").split(",")
+             if h.strip()}
+    if p.scheme == "https" and p.hostname in hosts:
+        return True
+    return p.scheme == "http" and p.hostname in {"localhost", "127.0.0.1"}
+
+
+"""Everything environment-specific lives in one file. 
+The redirect allowlist stops an attacker from registering a client that sends login codes to their own site."""

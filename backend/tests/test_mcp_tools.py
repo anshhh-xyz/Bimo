@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 from mcp.server.fastmcp.exceptions import ToolError
 
 from app.main import app
-from app.mcp_server import tools
-from app.mcp_server.auth import Caller, bearer_token, caller_from_headers
+from mcp_server import tools
+from mcp_server.auth import Caller, bearer_token, caller_from_headers
 from app.services.errors import InvalidInput, Unauthorized
 
 OWNER, EDITOR, VIEWER = Caller(1, "web"), Caller(2, "code"), Caller(3, "web")

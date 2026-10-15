@@ -1,8 +1,13 @@
 import hmac
 from dataclasses import dataclass
+
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
-from app.config import dev_tokens
+
+from app.config import dev_tokens, public_url
+from app.db import SessionLocal
+from app.services import oauth
 from app.services.errors import InvalidInput, Unauthorized
 
 MCP_SURFACES = {"web", "code"}
@@ -22,12 +27,14 @@ def bearer_token(value: str | None) -> str | None:
 
 
 def resolve_token(token: str | None) -> int | None:
+    """Static dev token first (Inspector, curl), then a real OAuth access token."""
     if not token:
         return None
     for known, user_id in dev_tokens().items():
         if hmac.compare_digest(known, token):   # constant-time compare
             return user_id
-    return None
+    with SessionLocal() as session:
+        return oauth.user_for_access_token(session, token)
 
 
 def caller_from_headers(headers) -> Caller:
@@ -40,9 +47,16 @@ def caller_from_headers(headers) -> Caller:
     return Caller(user_id, surface)
 
 
+def _challenge_header() -> str:
+    base = public_url()
+    if not base:
+        return "Bearer"
+    return f'Bearer resource_metadata="{base}/.well-known/oauth-protected-resource"'
+
+
 class BearerAuthMiddleware:
-    """Pure ASGI (not BaseHTTPMiddleware, which breaks streaming responses).
-    Rejects /mcp requests without a valid token before MCP sees them."""
+    """Pure ASGI. Rejects /mcp requests without a valid token and points the
+    client at the OAuth discovery document, which is what starts the login flow."""
 
     def __init__(self, app, prefix: str = "/mcp"):
         self.app = app
@@ -52,14 +66,10 @@ class BearerAuthMiddleware:
         if scope["type"] == "http" and (
                 scope["path"] == self.prefix or scope["path"].startswith(self.prefix + "/")):
             token = bearer_token(Headers(scope=scope).get("authorization"))
-            if resolve_token(token) is None:
+            # DB lookup is synchronous, so keep it off the event loop
+            if await run_in_threadpool(resolve_token, token) is None:
                 response = JSONResponse({"error": "unauthorized"}, status_code=401,
-                                        headers={"WWW-Authenticate": "Bearer"})
+                                        headers={"WWW-Authenticate": _challenge_header()})
                 await response(scope, receive, send)
                 return
         await self.app(scope, receive, send)
-
-"""The middleware returns a proper HTTP 401 at the door, 
-which clients expect and which OAuth discovery will need later. The tools re-resolve the identity per call. 
-surface comes from an X-Surface header, so a Claude Code connection can declare itself code and its writes get labeled correctly for provenance. 
-github is deliberately not allowed here, because that surface is reserved for the webhook in Phase 5."""

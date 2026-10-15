@@ -1,7 +1,9 @@
 from dotenv import load_dotenv
 load_dotenv()
-
-import os
+import os 
+os.environ["PUBLIC_MODE"] = "0"   
+# tests must never run with the public guard on
+#load_dotenv() would otherwise pull PUBLIC_MODE=1 from your .env into the tests and make every REST test return 404.
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

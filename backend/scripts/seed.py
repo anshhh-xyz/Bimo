@@ -9,11 +9,11 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 from db import SessionLocal
-from models import User, Project, ProjectMember, Task, Decision, Event, Handoff
+from app.models import User, Project, ProjectMember, Task, Decision, Event, Handoff
 
 def seed():
     with SessionLocal() as session:
-        print("🌱 Starting database seeding...")
+        print("Starting database seeding...")
 
         # 1. Users (3 users with lowercase emails to satisfy check constraints)
         user_data = [

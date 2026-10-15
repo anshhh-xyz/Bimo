@@ -112,7 +112,7 @@ async def _run(ctx: Context, fn: Callable, **kwargs) -> str:
     if request is None:
         raise ToolError("No HTTP request context; this server needs the HTTP transport.")
     try:
-        caller = caller_from_headers(request.headers)
+        caller = await run_in_threadpool(caller_from_headers, request.headers)
     except ServiceError as e:
         raise ToolError(format_error(e)) from e
     # The DB layer is synchronous; run it in a worker thread so one slow query
