@@ -44,7 +44,7 @@ def allowed_redirect(uri: str) -> bool:
     if p.fragment:
         return False
     hosts = {h.strip() for h in
-             os.environ.get("ALLOWED_REDIRECT_HOSTS", "claude.ai,claude.com").split(",")
+             os.environ.get("ALLOWED_REDIRECT_HOSTS", "claude.ai,claude.com,chatgpt.com").split(",")
              if h.strip()}
     if p.scheme == "https" and p.hostname in hosts:
         return True

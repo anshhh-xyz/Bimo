@@ -129,7 +129,25 @@ class StateOut(BaseModel):
     latest_handoff: HandoffOut | None
     unverified: list[UnverifiedItem]
 
+# ---- members
+MemberRole = Literal["viewer", "editor", "owner"]
 
+
+class MemberAdd(In):
+    email: str = Field(min_length=3, max_length=255)
+    role: MemberRole = "viewer"
+
+
+class MemberRoleUpdate(In):
+    role: MemberRole
+
+
+class MemberOut(Out):
+    user_id: int
+    email: str
+    display_name: str | None
+    role: str
+    created_at: datetime
 
 """Why separate schemas from models? 
 The database may contain internal fields that you don't want to accept from a client or expose in a response. 

@@ -23,7 +23,6 @@ class NotFound(ServiceError):
 class InvalidInput(ServiceError):
     status_code = 422
 
-
 class ConflictError(ServiceError):
     status_code = 409
 
