@@ -21,6 +21,8 @@ from app.services import state as state_svc
 from app.services import tasks as task_svc
 from app.services.errors import InvalidInput, ServiceError
 from app.services import projects as project_svc
+from app.services import conflicts as conflict_svc
+from app.services import verification as verify_svc
 
 
 # ---------- pure operations: (session, caller, **args) -> JSON-able data ----------
@@ -83,7 +85,9 @@ def op_save_handoff(session, caller, project_id, summary, completed=None, blocke
         open_questions=open_questions or [], files_touched=files_touched or [],
         last_commit_sha=last_commit_sha, verification_status=verification_status,
         next_action=next_action, agent=agent))
-    return HandoffOut.model_validate(h).model_dump(mode="json")
+    return {"handoff": HandoffOut.model_validate(h).model_dump(mode="json"),
+            "open_conflicts": conflict_svc.list_conflicts(session, project_id),
+            "unverified_count": len(state_svc.build_state(session, project_id)["unverified"])}
 
 
 def op_list_changes(session, caller, project_id, since=None, limit=20):
@@ -96,6 +100,26 @@ def op_list_changes(session, caller, project_id, since=None, limit=20):
             raise InvalidInput("since must be an ISO-8601 timestamp")
     rows = event_svc.list_changes(session, project_id, since_dt, limit)
     return [EventOut.model_validate(e).model_dump(mode="json") for e in rows]
+
+def op_verify_item(session, caller, project_id, kind, item_id, version):
+    ctx = _ctx(session, caller, project_id, "owner")
+    row = verify_svc.verify_item(session, ctx, kind, item_id, version)
+    return verify_svc.item_out(kind, row)
+
+
+def op_list_conflicts(session, caller, project_id):
+    _ctx(session, caller, project_id, "viewer")
+    return conflict_svc.list_conflicts(session, project_id)
+
+
+def op_resolve_task_conflict(session, caller, project_id, task_id, note=None):
+    ctx = _ctx(session, caller, project_id, "owner")
+    return conflict_svc.resolve_task_conflict(session, ctx, task_id, note)
+
+
+def op_resolve_decision_conflict(session, caller, project_id, keep_decision_id, note=None):
+    ctx = _ctx(session, caller, project_id, "owner")
+    return conflict_svc.resolve_decision_conflict(session, ctx, keep_decision_id, note)
 
 
 # ---------- execution wrapper ----------
@@ -182,6 +206,36 @@ def register(mcp: FastMCP) -> None:
         return await _run(ctx, op_record_decision, project_id=project_id, topic=topic,
                           decision=decision, rationale=rationale, agent=agent,
                           commit_sha=commit_sha)
+
+    @mcp.tool()
+    async def verify_item(project_id: int, kind: Literal["task", "decision"], item_id: int,
+                          version: int, ctx: Context) -> str:
+        """OWNER ONLY. Mark an asserted task or decision as verified after you actually
+        checked it. `version` must be the version you read. You cannot verify something
+        you wrote or last edited. Any later edit resets it to asserted."""
+        return await _run(ctx, op_verify_item, project_id=project_id, kind=kind,
+                          item_id=item_id, version=version)
+
+    @mcp.tool()
+    async def list_conflicts(project_id: int, ctx: Context) -> str:
+        """List open conflicts: rejected stale task edits not yet retried or resolved, and
+        topics with contradictory active decisions. Check before relying on either."""
+        return await _run(ctx, op_list_conflicts, project_id=project_id)
+
+    @mcp.tool()
+    async def resolve_task_conflict(project_id: int, task_id: int, ctx: Context,
+                                    note: str | None = None) -> str:
+        """OWNER ONLY. Close an open edit conflict on a task after reconciling it."""
+        return await _run(ctx, op_resolve_task_conflict, project_id=project_id,
+                          task_id=task_id, note=note)
+
+    @mcp.tool()
+    async def resolve_decision_conflict(project_id: int, keep_decision_id: int, ctx: Context,
+                                        note: str | None = None) -> str:
+        """OWNER ONLY. Keep one decision for a contradicted topic; the other active
+        decisions on that topic are marked superseded."""
+        return await _run(ctx, op_resolve_decision_conflict, project_id=project_id,
+                          keep_decision_id=keep_decision_id, note=note)
 
     @mcp.tool()
     async def save_handoff(project_id: int, summary: str, ctx: Context,

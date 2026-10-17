@@ -38,7 +38,8 @@ def update_task(session, ctx, task_id: int, data: TaskUpdate) -> Task:
                 verified_by=None,
                 verified_at=None,
                 surface=ctx.surface,
-                updated_at=func.now())
+                updated_at=func.now(),
+                updated_by=ctx.user.id,)
         .returning(Task)
         .execution_options(populate_existing=True)
     )

@@ -4,7 +4,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
+def allow_self_verify() -> bool:
+    return os.environ.get("ALLOW_SELF_VERIFY") == "1"
+    
 def dev_tokens() -> dict[str, int]:
     """DEV_TOKENS='tokenA:1,tokenB:2' -> {'tokenA': 1, 'tokenB': 2}.
     Read on every call so tests can change the env var."""
@@ -36,6 +38,10 @@ def user_passphrases() -> dict[str, str]:
             raise ValueError("USER_PASSPHRASES must look like 'email:passphrase,email:passphrase'")
         out[email.lower()] = phrase
     return out
+
+def allow_self_verify() -> bool:
+    """Single-owner setups: let the owner verify items they wrote. Default off."""
+    return os.environ.get("ALLOW_SELF_VERIFY") == "1"
 
 
 def allowed_redirect(uri: str) -> bool:

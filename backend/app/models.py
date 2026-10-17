@@ -122,6 +122,9 @@ class Task(Base):
     provenance: Mapped[str] = mapped_column(
         sa.String(50), server_default="asserted", nullable=False
     )
+    updated_by: Mapped[Optional[int]] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
     surface: Mapped[Optional[str]] = mapped_column(sa.String(50), nullable=True)
     agent: Mapped[Optional[str]] = mapped_column(sa.String(50), nullable=True)
     commit_sha: Mapped[Optional[str]] = mapped_column(sa.String(64), nullable=True)
@@ -188,7 +191,10 @@ class Decision(Base):
     verified_at: Mapped[Optional[datetime]] = mapped_column(
         sa.DateTime(timezone=True), nullable=True
     )
-
+    superseded_by: Mapped[Optional[int]] = mapped_column(
+        sa.ForeignKey("decisions.id", ondelete="SET NULL", name="fk_decisions_superseded_by"),
+        nullable=True,
+    )
     # Decision specific columns
     topic: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     decision: Mapped[str] = mapped_column(sa.Text, nullable=False)

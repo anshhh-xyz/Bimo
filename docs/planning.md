@@ -38,3 +38,16 @@ There are four distinct responsibilities:
 - MCP: makes your backend's capabilities available as tools in Claude.
 - FastAPI: enforces permissions and implements the memory and project logic.
 - Database: stores the shared information persistently.
+
+Problem 1: Two agents disagree, and nobody notices.
+
+Say you are chatting with Claude in Account A, and Account B is working on the same project.
+
+Account A records the decision “Use Postgres” on the topic “Database”.
+Account B, without having read A’s decision, records “Use SQLite” on the same topic.
+
+Before Phase 7, the next session sees both decisions and has to guess which is current. After Phase 7, get_project_state puts this at the top:
+
+conflicts: [ Database: two different decisions — #12 "Use Postgres", #15 "Use SQLite" ]
+
+If owner, call resolve_decision_conflict(keep=12). Decision 15 is marked superseded, the conflict disappears, and future sessions see only “Use Postgres”

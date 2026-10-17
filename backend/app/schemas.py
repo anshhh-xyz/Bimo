@@ -82,7 +82,12 @@ class DecisionOut(Out):
     verified_at: datetime | None
     version: int
     created_at: datetime
+    superseded_by: int | None = None
 
+class ConflictItem(BaseModel):
+    kind: Literal["task", "decision_topic"]
+    label: str
+    detail: dict[str, Any]
 
 # ---- handoffs
 class HandoffCreate(In):
@@ -134,6 +139,7 @@ class UnverifiedItem(BaseModel):
 
 
 class StateOut(BaseModel):
+    conflicts: list[ConflictItem] = []
     summary: str | None = None
     summary_version: int = 1
     open_tasks: list[TaskOut]

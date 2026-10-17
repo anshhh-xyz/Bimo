@@ -6,6 +6,8 @@ from mcp_server.server import mcp, mcp_asgi_app
 from app.public_guard import PublicGuard
 from app.routers import projects, tasks, decisions, changes, handoffs, oauth, members
 from app.services.errors import ConflictError, ServiceError
+from app.routers import projects, tasks, decisions, changes, handoffs, oauth, verification  # + your members router
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -31,7 +33,7 @@ def health():
     return {"ok": True}
 
 
-for r in (projects, tasks, decisions, changes, handoffs, oauth, members):
+for r in (projects, tasks, decisions, changes, handoffs, oauth, members, verification): 
     app.include_router(r.router)
 
 # Mount LAST so every FastAPI route above (including the OAuth ones) wins.

@@ -99,5 +99,7 @@ def test_mcp_lists_all_tools(http):
                   json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     assert r.status_code == 200
     names = {t["name"] for t in r.json()["result"]["tools"]}
-    assert names == {"list_projects", "get_project_state", "create_task", "update_task",
-                     "record_decision", "save_handoff", "list_changes"}
+    assert names == {"list_projects", "get_project_state", "update_project_summary",
+                 "create_task", "update_task", "record_decision",
+                 "save_handoff", "list_changes", "verify_item", 
+                 "list_conflicts", "resolve_task_conflict", "resolve_decision_conflict"}
