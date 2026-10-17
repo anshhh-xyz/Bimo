@@ -88,10 +88,10 @@ A shared project-state layer that works across multiple Claude web accounts and 
 ## Phase 5: Connect clients and test continuity
 **Goal:** Prove the core value on real clients after project permissions are manageable.
 
-- [ ] 5.1 Claude web: add the custom connector in Account A, enable it in a chat
-- [ ] 5.2 Repeat for Accounts B and C, authenticating each with its own Bimo user credentials
+- [x] 5.1 Claude web: add the custom connector in Account A, enable it in a chat
+- [x] 5.2 Repeat for Accounts B and C, authenticating each with its own Bimo user credentials
 - [ ] 5.3 Configure membership so only the intended accounts can access each test project
-- [ ] 5.4 Claude Code: add the remote MCP server and test separately
+- [ ] 5.4 Claude Code: add the remote MCP server and test separately (deferred: not installed; ChatGPT web tested as a second client instead)
 - [ ] 5.5 Scenario test: A records a decision, B retrieves it when both have project access
 - [ ] 5.6 Scenario test: C is denied access to a project it has not been added to
 - [ ] 5.7 Scenario test: remove B from a project and confirm subsequent requests are denied

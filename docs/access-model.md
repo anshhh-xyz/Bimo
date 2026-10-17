@@ -12,7 +12,7 @@
 | editor | yes  | yes                                | no             |
 | owner  | yes  | yes                                | yes            |
 
-`member` is a legacy alias of `editor`.
+Only these three roles exist. The database rejects anything else (`ck_project_members_role`); the old `member` role was migrated to `editor`.
 
 ## Rules
 - Only owners can add, remove or re-role members.
@@ -20,3 +20,11 @@
 - The last owner cannot be removed or demoted. An owner may leave if another owner exists.
 - Non-members get 403 on every project resource (existence of a project is not revealed).
 - Membership changes are written to the `events` log (`member_added`, `member_removed`, `member_role_changed`).
+
+## Audit trail
+- Every event records `user_id`, `surface` and `agent`. `agent` is derived server-side from the OAuth client the account logged in with (`claude`, `claude-code`, `chatgpt`, or a slug of an unknown client's name), so it cannot be spoofed by the model. Writes made with a static dev token carry no agent.
+- Records (tasks, decisions, handoffs) keep the agent string the client supplied, falling back to the server-derived one.
+
+## Login protection
+- `/authorize` locks an email after 5 failed passphrases in 15 minutes, and an IP after 20. While locked, even the correct passphrase is refused (HTTP 429). A successful login resets the email's counter.
+- Counters are in process memory: they reset on restart and are per instance.
