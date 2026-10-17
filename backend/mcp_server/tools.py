@@ -11,8 +11,8 @@ from app.db import SessionLocal
 from mcp_server.auth import Caller, caller_from_headers
 from mcp_server.formatting import format_error, format_validation_error, wrap_memory
 from app.schemas import (DecisionCreate, DecisionOut, EventOut, HandoffCreate,
-                         HandoffOut, StateOut, TaskCreate, TaskOut, TaskUpdate,
-                         SummaryOut,SummaryUpdate)
+                         HandoffOut, ProjectCreate, ProjectOut, StateOut, TaskCreate,
+                         TaskOut, TaskUpdate, SummaryOut, SummaryUpdate)
 from app.services import access
 from app.services import decisions as decision_svc
 from app.services import events as event_svc
@@ -37,6 +37,11 @@ def op_list_projects(session, caller):
     access.get_user(session, caller.user_id)
     return access.list_projects(session, caller.user_id)
 
+def op_create_project(session, caller, name, summary=None):
+    actor = access.get_actor(session, caller.user_id, caller.surface, caller.agent)
+    created = project_svc.create_project(
+        session, actor, ProjectCreate(name=name, summary=summary))
+    return ProjectOut.model_validate(created).model_dump(mode="json")
 
 def op_get_project_state(session, caller, project_id):
     _ctx(session, caller, project_id, "viewer")
@@ -161,6 +166,14 @@ def register(mcp: FastMCP) -> None:
         """List the projects you belong to, with project_id and your role.
         Call this first if you don't know the project_id."""
         return await _run(ctx, op_list_projects)
+
+    @mcp.tool()
+    async def create_project(name: str, ctx: Context, summary: str | None = None) -> str:
+        """Create a brand-new project. You become its OWNER and can then add members
+        by email. Call list_projects first so you don't create a duplicate. Returns the
+        new project_id. `summary` is optional (max 4000 characters); it can also be set
+        later with update_project_summary."""
+        return await _run(ctx, op_create_project, name=name, summary=summary)
 
     @mcp.tool()
     async def get_project_state(project_id: int, ctx: Context) -> str:

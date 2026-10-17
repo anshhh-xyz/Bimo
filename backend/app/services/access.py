@@ -15,6 +15,12 @@ class Ctx:
     surface: str
     agent: str | None = None   # which client wrote this (derived server-side)
 
+@dataclass
+class Actor:
+    """Who is acting when there is no project yet, so there is no role to check."""
+    user: User
+    surface: str
+    agent: str | None = None
 
 def get_user(session, user_id: int) -> User:
     user = session.get(User, user_id)
@@ -38,6 +44,14 @@ def get_ctx(session, user_id: int, project_id: int,
     return Ctx(user=user, project_id=project_id,
                role=member.role, surface=surface, agent=agent)
 
+def get_actor(session, user_id: int, surface: str = "web",
+              agent: str | None = None) -> Actor:
+    """Identity check for actions that are not tied to an existing project
+    (creating one). Same order as get_ctx: 401, then 422."""
+    user = get_user(session, user_id)
+    if surface not in SURFACES:
+        raise InvalidInput("surface must be web, code or github")
+    return Actor(user=user, surface=surface, agent=agent)
 
 def list_projects(session, user_id: int) -> list[dict]:
     rows = session.execute(

@@ -1,9 +1,8 @@
 from sqlalchemy import select, update, func
-from app.models import Project
-from app.schemas import SummaryUpdate, SummaryOut
+from app.models import Project, ProjectMember
+from app.schemas import ProjectCreate, SummaryUpdate, SummaryOut
 from app.services.errors import ConflictError, NotFound
 from app.services.events import log_event
-
 
 def update_summary(session, ctx, data: SummaryUpdate) -> Project:
     old_len = session.scalar(
@@ -41,3 +40,27 @@ def update_summary(session, ctx, data: SummaryUpdate) -> Project:
                        "new_version": project.summary_version})
     session.commit()
     return project
+
+def create_project(session, actor, data: ProjectCreate) -> dict:
+    """Create a project, make the caller its owner, and log it, as ONE transaction.
+    If any step fails nothing is saved, so a project can never exist without an owner.
+    The owner comes from the authenticated actor, never from the request body."""
+    try:
+        project = Project(name=data.name, summary=data.summary)
+        session.add(project)
+        session.flush()  # assigns project.id; the transaction stays open
+
+        session.add(ProjectMember(project_id=project.id, user_id=actor.user.id,
+                                  role="owner"))
+        log_event(session, project_id=project.id, user_id=actor.user.id,
+                  surface=actor.surface, agent=actor.agent, type="project_created",
+                  payload={"name": project.name})
+        session.commit()  # project + owner + event, or nothing
+    except Exception:
+        session.rollback()
+        raise
+
+    session.refresh(project)  # loads server defaults (created_at, summary_version)
+    return {"id": project.id, "name": project.name, "role": "owner",
+            "summary": project.summary, "summary_version": project.summary_version,
+            "created_at": project.created_at}

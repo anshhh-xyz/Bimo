@@ -6,7 +6,7 @@ os.environ["PUBLIC_MODE"] = "0"
 #load_dotenv() would otherwise pull PUBLIC_MODE=1 from your .env into the tests and make every REST test return 404.
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.db import get_session
@@ -26,6 +26,11 @@ def session():
         s.add_all([ProjectMember(project_id=1, user_id=1, role="owner"),
                    ProjectMember(project_id=1, user_id=2, role="editor"),
                    ProjectMember(project_id=1, user_id=3, role="viewer")])
+        s.commit()
+        # Seed rows use explicit ids, which do not advance Postgres' id counter.
+        # Without this, the first POST /projects would try id=1 and collide.
+        s.execute(text("SELECT setval(pg_get_serial_sequence('projects', 'id'), "
+                       "(SELECT max(id) FROM projects))"))
         s.commit()
         yield s
     engine.dispose()

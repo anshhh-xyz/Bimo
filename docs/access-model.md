@@ -20,7 +20,8 @@ Only these three roles exist. The database rejects anything else (`ck_project_me
 - The last owner cannot be removed or demoted. An owner may leave if another owner exists.
 - Non-members get 403 on every project resource (existence of a project is not revealed).
 - Membership changes are written to the `events` log (`member_added`, `member_removed`, `member_role_changed`).
-
+- Any authenticated Bimo user can create a project (`POST /projects`, or the `create_project` MCP tool) and becomes its owner. The owner is taken from the authenticated identity, never from the request body.
+- Project, owner membership and a `project_created` event are written in one transaction, so a project without an owner cannot exist.
 ## Audit trail
 - Every event records `user_id`, `surface` and `agent`. `agent` is derived server-side from the OAuth client the account logged in with (`claude`, `claude-code`, `chatgpt`, or a slug of an unknown client's name), so it cannot be spoofed by the model. Writes made with a static dev token carry no agent.
 - Records (tasks, decisions, handoffs) keep the agent string the client supplied, falling back to the server-derived one.

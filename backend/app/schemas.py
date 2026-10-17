@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Any, Literal
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated, Any, Literal
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
 #what api accepts and returns
 Provenance = Literal["verified", "asserted", "unverified"]
 TaskState = Literal["todo", "in_progress", "done"]
@@ -47,6 +48,25 @@ class TaskOut(Out):
     verified_at: datetime | None
     version: int
     updated_at: datetime | None
+
+# ---- project creation
+# strip first, then check length, so "   " is rejected
+ProjectName = Annotated[str, StringConstraints(strip_whitespace=True,
+                                               min_length=1, max_length=150)]
+
+
+class ProjectCreate(In):
+    name: ProjectName
+    summary: str | None = Field(default=None, min_length=1, max_length=4000)
+
+
+class ProjectOut(Out):
+    id: int
+    name: str
+    role: str
+    summary: str | None
+    summary_version: int
+    created_at: datetime
 
 #--- summary
 class SummaryUpdate(In):
