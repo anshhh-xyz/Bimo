@@ -11,7 +11,8 @@ from app.db import SessionLocal
 from mcp_server.auth import Caller, caller_from_headers
 from mcp_server.formatting import format_error, format_validation_error, wrap_memory
 from app.schemas import (DecisionCreate, DecisionOut, EventOut, HandoffCreate,
-                         HandoffOut, StateOut, TaskCreate, TaskOut, TaskUpdate)
+                         HandoffOut, StateOut, TaskCreate, TaskOut, TaskUpdate,
+                         SummaryOut,SummaryUpdate)
 from app.services import access
 from app.services import decisions as decision_svc
 from app.services import events as event_svc
@@ -19,6 +20,7 @@ from app.services import handoffs as handoff_svc
 from app.services import state as state_svc
 from app.services import tasks as task_svc
 from app.services.errors import InvalidInput, ServiceError
+from app.services import projects as project_svc
 
 
 # ---------- pure operations: (session, caller, **args) -> JSON-able data ----------
@@ -66,6 +68,11 @@ def op_record_decision(session, caller, project_id, topic, decision,
         agent=agent, commit_sha=commit_sha))
     return DecisionOut.model_validate(d).model_dump(mode="json")
 
+def op_update_project_summary(session, caller, project_id, summary, version):
+    ctx = _ctx(session, caller, project_id, "editor")
+    p = project_svc.update_summary(session, ctx,
+                                   SummaryUpdate(summary=summary, version=version))
+    return SummaryOut.model_validate(p).model_dump(mode="json")
 
 def op_save_handoff(session, caller, project_id, summary, completed=None, blockers=None,
                     open_questions=None, files_touched=None, last_commit_sha=None,
@@ -133,10 +140,20 @@ def register(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def get_project_state(project_id: int, ctx: Context) -> str:
-        """Get open tasks, recent decisions, the latest handoff and the list of
-        unverified items. Call at the start of every session."""
+        """Get the project summary (read this first), open tasks, recent decisions,
+        the latest handoff and the list of unverified items. Call at the start of every session."""
         return await _run(ctx, op_get_project_state, project_id=project_id)
-
+    
+    @mcp.tool()
+    async def update_project_summary(project_id: int, summary: str, version: int,
+                                     ctx: Context) -> str:
+        """Replace the project summary (roadmap pointer, phase status, short file
+        map, key rules). `version` must be the summary_version you last read; on a
+        VERSION CONFLICT nothing is written, so re-read the state and merge.
+        Update only when file structure or phase status changes. Max 4000
+        characters. Do not put task lists here, use tasks."""
+        return await _run(ctx, op_update_project_summary, project_id=project_id,
+                          summary=summary, version=version)
     @mcp.tool()
     async def create_task(project_id: int, title: str, ctx: Context,
                           description: str | None = None, agent: str | None = None,

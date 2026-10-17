@@ -48,6 +48,15 @@ class TaskOut(Out):
     version: int
     updated_at: datetime | None
 
+#--- summary
+class SummaryUpdate(In):
+    summary: str = Field(min_length=1, max_length=4000)
+    version: int
+
+
+class SummaryOut(Out):
+    summary: str | None
+    summary_version: int
 
 # ---- decisions
 class DecisionCreate(In):
@@ -125,6 +134,8 @@ class UnverifiedItem(BaseModel):
 
 
 class StateOut(BaseModel):
+    summary: str | None = None
+    summary_version: int = 1
     open_tasks: list[TaskOut]
     recent_decisions: list[DecisionOut]
     latest_handoff: HandoffOut | None

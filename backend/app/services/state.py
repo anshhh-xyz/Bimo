@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from app.models import Task, Decision
 from app.services.handoffs import latest_handoff
+from app.models import Task, Decision, Project
 
 def build_state(session, project_id: int) -> dict:
     open_tasks = session.scalars(
@@ -20,6 +21,10 @@ def build_state(session, project_id: int) -> dict:
         unverified.append({"kind": "decision", "id": d.id,
                            "label": d.topic, "provenance": d.provenance})
 
-    return {"open_tasks": open_tasks, "recent_decisions": decisions,
+    project = session.get(Project, project_id)
+
+    return {"summary": project.summary,
+            "summary_version": project.summary_version,
+            "open_tasks": open_tasks, "recent_decisions": decisions,
             "latest_handoff": latest_handoff(session, project_id),
             "unverified": unverified}

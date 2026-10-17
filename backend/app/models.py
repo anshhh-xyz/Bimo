@@ -32,12 +32,14 @@ class Project(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(sa.String(150), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+        sa.DateTime(timezone=True), server_default=func.now(), nullable=False)
+    summary: Mapped[Optional[str]] = mapped_column(sa.Text, nullable=True)
+    summary_version: Mapped[int] = mapped_column(server_default="1", nullable=False)
 
     members: Mapped[list["ProjectMember"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    
 
 
 class ProjectMember(Base):
@@ -320,6 +322,7 @@ class OAuthToken(Base):
         sa.CheckConstraint("kind IN ('access', 'refresh')", name="ck_oauth_tokens_kind"),
         sa.Index("ix_oauth_tokens_user", "user_id"),
     )
+
 
 """OAuth needs three things remembered: which clients registered, which login codes are pending, and which tokens are live. 
 Storing hashes means a leaked database dump doesn’t hand out working tokens."""
