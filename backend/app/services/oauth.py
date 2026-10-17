@@ -117,6 +117,16 @@ def refresh_tokens(session, client_id, refresh_token) -> dict:
     return result
 
 
+def identity_for_access_token(session, token: str) -> tuple[int, str | None] | None:
+    """(user_id, client_name) for a live access token, else None.
+    client_name is what the client registered as (e.g. "Claude", "ChatGPT")."""
+    row = session.get(OAuthToken, _hash(token))
+    if row is None or row.kind != "access" or row.expires_at <= _now():
+        return None
+    client = session.get(OAuthClient, row.client_id)
+    return row.user_id, (client.client_name if client else None)
+
+
 def user_for_access_token(session, token: str) -> int | None:
     row = session.get(OAuthToken, _hash(token))
     if row is not None and row.kind == "access" and row.expires_at > _now():

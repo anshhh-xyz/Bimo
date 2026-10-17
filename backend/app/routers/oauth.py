@@ -8,6 +8,7 @@ from app.config import public_url
 from app.db import get_session
 from app.models import OAuthClient
 from app.services import oauth as svc
+from app.services import ratelimit
 
 router = APIRouter(tags=["oauth"])
 
@@ -121,8 +122,15 @@ def authorize_get(client_id: str = Query(...), redirect_uri: str = Query(...),
     return _page(_form(client_id, redirect_uri, state, code_challenge, code_challenge_method))
 
 
+def _client_ip(request: Request) -> str:
+    # Behind the Cloudflare tunnel the real client is in CF-Connecting-IP.
+    return request.headers.get("cf-connecting-ip") or (
+        request.client.host if request.client else "unknown")
+
+
 @router.post("/authorize")
-def authorize_post(client_id: str = Form(...), redirect_uri: str = Form(...),
+def authorize_post(request: Request,
+                   client_id: str = Form(...), redirect_uri: str = Form(...),
                    state: str = Form(""), code_challenge: str = Form(...),
                    code_challenge_method: str = Form(...),
                    email: str = Form(...), passphrase: str = Form(...),
@@ -131,10 +139,24 @@ def authorize_post(client_id: str = Form(...), redirect_uri: str = Form(...),
                              code_challenge, code_challenge_method)
     if problem:
         return _page(f"<h3>Cannot continue</h3><p>{html.escape(problem)}</p>", 400)
+
+    email_key = email.strip().lower()
+    ip = _client_ip(request)
+    # Checked BEFORE the passphrase, so a locked account rejects even the right one.
+    if ratelimit.by_email.blocked(email_key) or ratelimit.by_ip.blocked(ip):
+        return HTMLResponse(
+            "<!doctype html><meta charset=utf-8><body style='font-family:system-ui;"
+            "max-width:380px;margin:12vh auto'><h3>Too many attempts</h3>"
+            "<p>Try again in 15 minutes.</p>",
+            status_code=429, headers={"Retry-After": str(ratelimit.WINDOW)})
+
     user = svc.verify_login(session, email, passphrase)
     if user is None:
+        ratelimit.by_email.record_failure(email_key)
+        ratelimit.by_ip.record_failure(ip)
         return _page(_form(client_id, redirect_uri, state, code_challenge,
                            code_challenge_method, "Wrong email or passphrase."), 401)
+    ratelimit.by_email.reset(email_key)
     code = svc.create_code(session, client_id, user.id, redirect_uri, code_challenge)
     parts = urlsplit(redirect_uri)
     query = parse_qsl(parts.query) + [("code", code)] + ([("state", state)] if state else [])

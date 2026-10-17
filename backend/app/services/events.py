@@ -3,9 +3,9 @@ from sqlalchemy import select
 from app.models import Event
 
 
-def log_event(session, *, project_id, user_id, surface, type, payload):
-    session.add(Event(project_id=project_id, user_id=user_id,
-                      surface=surface, type=type, payload=payload))
+def log_event(session, *, project_id, user_id, surface, type, payload, agent=None):
+    session.add(Event(project_id=project_id, user_id=user_id, surface=surface,
+                      agent=agent, type=type, payload=payload))
 
 
 def list_changes(session, project_id: int, since: datetime | None = None,

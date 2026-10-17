@@ -25,7 +25,8 @@ from app.services.errors import InvalidInput, ServiceError
 # No MCP types in here, so they are unit-testable without any HTTP.
 
 def _ctx(session, caller: Caller, project_id: int, role: str):
-    return access.get_ctx(session, caller.user_id, project_id, caller.surface, role)
+    return access.get_ctx(session, caller.user_id, project_id, caller.surface, role,
+                          agent=caller.agent)
 
 
 def op_list_projects(session, caller):

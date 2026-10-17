@@ -50,10 +50,15 @@ class ProjectMember(Base):
         sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     role: Mapped[str] = mapped_column(
-        sa.String(50), nullable=False, server_default="member"
+        sa.String(50), nullable=False, server_default="editor"
     )
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        sa.CheckConstraint("role IN ('viewer', 'editor', 'owner')",
+                           name="ck_project_members_role"),
     )
 
     project: Mapped["Project"] = relationship(back_populates="members")

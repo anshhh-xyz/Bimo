@@ -23,6 +23,12 @@ class NotFound(ServiceError):
 class InvalidInput(ServiceError):
     status_code = 422
 
+class StateConflict(ServiceError):
+    """409 for rule violations that are not version conflicts
+    (already a member, last owner)."""
+    status_code = 409
+
+
 class ConflictError(ServiceError):
     status_code = 409
 

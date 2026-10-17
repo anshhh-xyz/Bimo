@@ -47,11 +47,11 @@ def seed():
             session.add(project)
             session.flush()
 
-        # 3. Project Members (All 3 users: 1 owner, 2 members)
+        # 3. Project Members (All 3 users: 1 owner, 2 editors)
         members_data = [
             {"email": "alice@example.com", "role": "owner"},
-            {"email": "bob@example.com", "role": "member"},
-            {"email": "charlie@example.com", "role": "member"},
+            {"email": "bob@example.com", "role": "editor"},
+            {"email": "charlie@example.com", "role": "editor"},
         ]
         
         for m_info in members_data:

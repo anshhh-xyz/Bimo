@@ -111,6 +111,7 @@ class EventOut(Out):
     id: int
     user_id: int | None
     surface: str | None
+    agent: str | None = None
     type: str
     payload: dict[str, Any]
     created_at: datetime

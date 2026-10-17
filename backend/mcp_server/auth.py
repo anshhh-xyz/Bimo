@@ -1,4 +1,5 @@
 import hmac
+import re
 from dataclasses import dataclass
 
 from starlette.concurrency import run_in_threadpool
@@ -17,6 +18,7 @@ MCP_SURFACES = {"web", "code"}
 class Caller:
     user_id: int
     surface: str
+    agent: str | None = None
 
 
 def bearer_token(value: str | None) -> str | None:
@@ -26,25 +28,49 @@ def bearer_token(value: str | None) -> str | None:
     return token.strip() if scheme.lower() == "bearer" and token.strip() else None
 
 
-def resolve_token(token: str | None) -> int | None:
-    """Static dev token first (Inspector, curl), then a real OAuth access token."""
+def classify_client(client_name: str | None) -> tuple[str | None, str | None]:
+    """Map the OAuth client name to (agent, surface). Unknown clients keep a
+    slug of their own name as agent and no surface opinion."""
+    n = (client_name or "").strip().lower()
+    if not n:
+        return None, None
+    if "claude" in n and "code" in n:
+        return "claude-code", "code"
+    if "claude" in n:
+        return "claude", "web"
+    if "chatgpt" in n or "openai" in n:
+        return "chatgpt", "web"
+    return (re.sub(r"[^a-z0-9._-]+", "-", n).strip("-")[:50] or None), None
+
+
+def resolve_identity(token: str | None) -> tuple[int, str | None] | None:
+    """(user_id, client_name). Static dev token first, then OAuth access token.
+    Dev tokens have no client, so their writes carry no agent label."""
     if not token:
         return None
     for known, user_id in dev_tokens().items():
         if hmac.compare_digest(known, token):   # constant-time compare
-            return user_id
+            return user_id, None
     with SessionLocal() as session:
-        return oauth.user_for_access_token(session, token)
+        return oauth.identity_for_access_token(session, token)
+
+
+def resolve_token(token: str | None) -> int | None:
+    ident = resolve_identity(token)
+    return ident[0] if ident else None
 
 
 def caller_from_headers(headers) -> Caller:
-    user_id = resolve_token(bearer_token(headers.get("authorization")))
-    if user_id is None:
+    ident = resolve_identity(bearer_token(headers.get("authorization")))
+    if ident is None:
         raise Unauthorized("Missing or invalid bearer token")
-    surface = (headers.get("x-surface") or "web").lower()
+    user_id, client_name = ident
+    agent, client_surface = classify_client(client_name)
+    # An explicit X-Surface header wins; otherwise infer from the client; else web.
+    surface = (headers.get("x-surface") or client_surface or "web").lower()
     if surface not in MCP_SURFACES:
         raise InvalidInput("X-Surface must be 'web' or 'code'")
-    return Caller(user_id, surface)
+    return Caller(user_id, surface, agent)
 
 
 def _challenge_header() -> str:

@@ -8,13 +8,13 @@ from app.services.events import log_event
 def create_task(session, ctx, data: TaskCreate) -> Task:
     task = Task(project_id=ctx.project_id, title=data.title,
                 description=data.description, state="todo",
-                agent=data.agent, commit_sha=data.commit_sha,
+                agent=data.agent or ctx.agent, commit_sha=data.commit_sha,
                 provenance="asserted", created_by=ctx.user.id,
                 surface=ctx.surface, version=1)
     session.add(task)
     session.flush()  # get task.id
     log_event(session, project_id=ctx.project_id, user_id=ctx.user.id,
-              surface=ctx.surface, type="task_created",
+              surface=ctx.surface, agent=ctx.agent, type="task_created",
               payload={"task_id": task.id, "title": task.title})
     session.commit()
     session.refresh(task)  # load server defaults (updated_at, etc.)
@@ -52,7 +52,7 @@ def update_task(session, ctx, task_id: int, data: TaskUpdate) -> Task:
         if current is None:
             raise NotFound("Task not found")
         log_event(session, project_id=ctx.project_id, user_id=ctx.user.id,
-                  surface=ctx.surface, type="conflict_rejected",
+                  surface=ctx.surface, agent=ctx.agent, type="conflict_rejected",
                   payload={"task_id": task_id,
                            "sent_version": data.version,
                            "current_version": current.version})
@@ -61,7 +61,7 @@ def update_task(session, ctx, task_id: int, data: TaskUpdate) -> Task:
             TaskOut.model_validate(current).model_dump(mode="json"))
 
     log_event(session, project_id=ctx.project_id, user_id=ctx.user.id,
-              surface=ctx.surface, type="task_updated",
+              surface=ctx.surface, agent=ctx.agent, type="task_updated",
               payload={"task_id": task_id, "fields": list(changes),
                        "new_version": task.version})
     session.commit()

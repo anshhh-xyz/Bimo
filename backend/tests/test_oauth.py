@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
-from app.services import oauth
+from app.services import oauth, ratelimit
 
 REDIRECT = "https://claude.ai/api/mcp/auth_callback"
 
@@ -14,6 +14,7 @@ REDIRECT = "https://claude.ai/api/mcp/auth_callback"
 def env(monkeypatch):
     monkeypatch.setenv("USER_PASSPHRASES", "user1@test.dev:pw1")
     monkeypatch.setenv("PUBLIC_URL", "https://example.test")
+    ratelimit.clear_all()
 
 
 def pkce():

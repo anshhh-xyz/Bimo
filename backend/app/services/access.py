@@ -3,7 +3,7 @@ from sqlalchemy import select
 from app.models import Project, ProjectMember, User
 from app.services.errors import Forbidden, InvalidInput, Unauthorized
 
-ROLE_RANK = {"viewer": 1, "member": 2, "editor": 2, "owner": 3}
+ROLE_RANK = {"viewer": 1, "editor": 2, "owner": 3}
 SURFACES = {"web", "code", "github"}
 
 
@@ -13,6 +13,7 @@ class Ctx:
     project_id: int
     role: str
     surface: str
+    agent: str | None = None   # which client wrote this (derived server-side)
 
 
 def get_user(session, user_id: int) -> User:
@@ -23,7 +24,8 @@ def get_user(session, user_id: int) -> User:
 
 
 def get_ctx(session, user_id: int, project_id: int,
-            surface: str = "web", min_role: str = "viewer") -> Ctx:
+            surface: str = "web", min_role: str = "viewer",
+            agent: str | None = None) -> Ctx:
     """The one permission check. Same order as before: 401, then 403, then 422."""
     user = get_user(session, user_id)
     member = session.scalar(
@@ -34,7 +36,7 @@ def get_ctx(session, user_id: int, project_id: int,
     if surface not in SURFACES:
         raise InvalidInput("surface must be web, code or github")
     return Ctx(user=user, project_id=project_id,
-               role=member.role, surface=surface)
+               role=member.role, surface=surface, agent=agent)
 
 
 def list_projects(session, user_id: int) -> list[dict]:
