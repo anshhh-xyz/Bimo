@@ -104,4 +104,5 @@ def test_mcp_lists_all_tools(http):
                  "create_task", "update_task", "record_decision",
                  "save_handoff", "list_changes", "verify_item", 
                  "list_conflicts", "resolve_task_conflict", "resolve_decision_conflict",
-                 "delete_project"}
+                 "delete_project", "list_members", "add_member",
+                 "change_member_role", "remove_member"}
