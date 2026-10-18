@@ -20,7 +20,8 @@ def test_non_member_cannot_list(client):
 
 def test_owner_adds_member_and_access_is_granted(client):
     assert client.get("/projects/1/state", headers=H(4)).status_code == 403
-    r = client.post(URL, json={"email": "USER4@test.dev"}, headers=H(1))
+    r = client.post(URL, json={"email": "USER4@test.dev", "role": "viewer"},
+                    headers=H(1))
     assert r.status_code == 201
     assert r.json()["email"] == "user4@test.dev" and r.json()["role"] == "viewer"
     assert client.get("/projects/1/state", headers=H(4)).status_code == 200

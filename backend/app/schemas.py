@@ -173,7 +173,7 @@ MemberRole = Literal["viewer", "editor", "owner"]
 
 class MemberAdd(In):
     email: str = Field(min_length=3, max_length=255)
-    role: MemberRole = "viewer"
+    role: MemberRole = "editor"
 
 
 class MemberRoleUpdate(In):

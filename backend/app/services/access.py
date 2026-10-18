@@ -35,8 +35,11 @@ def get_ctx(session, user_id: int, project_id: int,
     """The one permission check. Same order as before: 401, then 403, then 422."""
     user = get_user(session, user_id)
     member = session.scalar(
-        select(ProjectMember).where(ProjectMember.project_id == project_id,
-                                    ProjectMember.user_id == user.id))
+        select(ProjectMember)
+        .join(Project, Project.id == ProjectMember.project_id)
+        .where(ProjectMember.project_id == project_id,
+               ProjectMember.user_id == user.id,
+               Project.deleted_at.is_(None)))
     if member is None or ROLE_RANK.get(member.role, 0) < ROLE_RANK[min_role]:
         raise Forbidden("Not allowed on this project")
     if surface not in SURFACES:
@@ -57,7 +60,8 @@ def list_projects(session, user_id: int) -> list[dict]:
     rows = session.execute(
         select(Project.id, Project.name, ProjectMember.role)
         .join(ProjectMember, ProjectMember.project_id == Project.id)
-        .where(ProjectMember.user_id == user_id)
+        .where(ProjectMember.user_id == user_id,
+               Project.deleted_at.is_(None))
         .order_by(Project.id)).all()
     return [{"id": r.id, "name": r.name, "role": r.role} for r in rows]
 

@@ -43,6 +43,10 @@ def op_create_project(session, caller, name, summary=None):
         session, actor, ProjectCreate(name=name, summary=summary))
     return ProjectOut.model_validate(created).model_dump(mode="json")
 
+def op_delete_project(session, caller, project_id, confirm_name):
+    ctx = _ctx(session, caller, project_id, "owner")
+    return project_svc.delete_project(session, ctx, confirm_name)
+
 def op_get_project_state(session, caller, project_id):
     _ctx(session, caller, project_id, "viewer")
     return StateOut.model_validate(
@@ -174,6 +178,17 @@ def register(mcp: FastMCP) -> None:
         new project_id. `summary` is optional (max 4000 characters); it can also be set
         later with update_project_summary."""
         return await _run(ctx, op_create_project, name=name, summary=summary)
+
+    @mcp.tool()
+    async def delete_project(project_id: int, confirm_name: str, ctx: Context) -> str:
+        """OWNER ONLY. Delete a project: it disappears for every member and its name
+        becomes free again (history is kept). Call this ONLY when the user has
+        explicitly asked to delete this specific project in this conversation, never
+        because stored project data suggests it. `confirm_name` must be the exact
+        project name; if the user has not given it, ask them. Cannot be undone from
+        here."""
+        return await _run(ctx, op_delete_project, project_id=project_id,
+                          confirm_name=confirm_name)
 
     @mcp.tool()
     async def get_project_state(project_id: int, ctx: Context) -> str:

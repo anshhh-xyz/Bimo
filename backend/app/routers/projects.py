@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from app.auth import current_actor, require_member
 from app.db import get_session
 from app.schemas import ProjectCreate, ProjectOut, StateOut, SummaryOut, SummaryUpdate
@@ -13,6 +13,11 @@ def create_project(body: ProjectCreate, actor=Depends(current_actor),
                    session=Depends(get_session)):
     return project_svc.create_project(session, actor, body)
 
+@router.delete("/{project_id}", status_code=204)
+def delete_project(project_id: int, confirm_name: str,
+                   ctx=Depends(require_member("owner")), session=Depends(get_session)):
+    project_svc.delete_project(session, ctx, confirm_name)
+    return Response(status_code=204)
 
 @router.patch("/{project_id}/summary", response_model=SummaryOut)
 def update_summary(project_id: int, body: SummaryUpdate,

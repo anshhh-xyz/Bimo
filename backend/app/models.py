@@ -28,14 +28,20 @@ class User(Base):
 
 class Project(Base):
     __tablename__ = "projects"
-
+    __table_args__ = (
+        # No two live projects may share a name, ignoring case.
+        # "Live" means not soft-deleted, so deleting a project frees its name.
+        sa.Index("uq_projects_active_name", sa.text("lower(name)"),
+                 unique=True, postgresql_where=sa.text("deleted_at IS NULL")),
+    )
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(sa.String(150), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), server_default=func.now(), nullable=False)
     summary: Mapped[Optional[str]] = mapped_column(sa.Text, nullable=True)
     summary_version: Mapped[int] = mapped_column(server_default="1", nullable=False)
-
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        sa.DateTime(timezone=True), nullable=True)
     members: Mapped[list["ProjectMember"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
